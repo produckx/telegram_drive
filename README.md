@@ -50,7 +50,7 @@ New_Project/
 
 ### 1. Chuẩn bị PostgreSQL
 - Database: `drive`
-- User: `irv`
+- User: `admin`
 - Password: `Password@123`
 - Host: `localhost:5432`
 
