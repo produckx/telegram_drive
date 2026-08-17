@@ -1,4 +1,4 @@
-# Telegram Drive (New Project)
+# Telegram Drive 
 
 Port của [Telegram Drive](https://github.com/caamer20/Telegram-Drive) từ Rust/Tauri sang **Python (FastAPI + Telethon)** với Flutter frontend. Toàn bộ logic giữ nguyên Old_Project, chỉ đổi ngôn ngữ lập trình.
 
