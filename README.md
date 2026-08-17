@@ -51,7 +51,7 @@ New_Project/
 ### 1. Chuẩn bị PostgreSQL
 - Database: `drive`
 - User: `irv`
-- Password: `Inoue@2025`
+- Password: `Password@123`
 - Host: `localhost:5432`
 
 ### 2. Cấu hình Telegram API + Admin
