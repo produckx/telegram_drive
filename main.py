@@ -1,0 +1,174 @@
+import os
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.utils import get_openapi
+from fastapi.routing import APIRoute
+from fastapi.middleware.cors import CORSMiddleware
+
+from api.router import router as api_router
+from web.router import router as web_router
+from core.webdav import router as webdav_router
+from config.database import init_db
+from config.settings import settings
+from config.logging import setup_logging
+from config.rate_limit import rate_limiter, login_guard, get_client_ip
+
+# Setup logging
+setup_logging()
+
+# Create FastAPI app
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    docs_url=None,
+    redoc_url=None,
+)
+
+# CORS middleware
+origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def attach_current_user(request, call_next):
+    """Gắn user hiện tại vào request.state để các trang web/template sử dụng."""
+    from config.auth import get_current_user
+    request.state.current_user = get_current_user(request)
+    response = await call_next(request)
+    return response
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    """Rate-limit các endpoint nhạy cảm (register/login/send-code) tránh DDoS & spam đăng ký."""
+    path = request.url.path
+    method = request.method
+    ip = get_client_ip(request)
+
+    # Chỉ áp dụng cho POST/PATCH (tạo mới/đăng nhập), bỏ qua GET/HEAD/OPTIONS
+    if method in ("POST", "PATCH", "PUT", "DELETE"):
+        if path.rstrip("/").endswith("/api/auth/register"):
+            key = f"register:{ip}"
+            window = settings.RATE_LIMIT_REGISTER_WINDOW
+            max_req = settings.RATE_LIMIT_REGISTER
+        elif path.rstrip("/").endswith("/api/auth/login"):
+            key = f"login:{ip}"
+            window = settings.RATE_LIMIT_LOGIN_WINDOW
+            max_req = settings.RATE_LIMIT_LOGIN
+        elif path.rstrip("/").endswith("/api/auth/send-code"):
+            key = f"sendcode:{ip}"
+            window = settings.RATE_LIMIT_SEND_CODE_WINDOW
+            max_req = settings.RATE_LIMIT_SEND_CODE
+        else:
+            key = f"generic:{ip}"
+            window = settings.RATE_LIMIT_DEFAULT_WINDOW
+            max_req = settings.RATE_LIMIT_DEFAULT
+
+        if not rate_limiter.allow(key, max_req, window):
+            from starlette.responses import JSONResponse
+            retry = rate_limiter.retry_after(key, window)
+            return JSONResponse(
+                status_code=429,
+                content={"detail": f"Quá nhiều yêu cầu. Vui lòng thử lại sau {retry} giây."},
+                headers={"Retry-After": str(retry)},
+            )
+
+    return await call_next(request)
+
+# Mount shared static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Mount uploads directory for serving uploaded files
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+# Local Swagger UI (Offline support)
+try:
+    import swagger_ui_bundle
+    swagger_ui_path = os.path.join(
+        os.path.dirname(swagger_ui_bundle.__file__),
+        "vendor", "swagger-ui-3.52.0"
+    )
+    app.mount("/swagger-ui", StaticFiles(directory=swagger_ui_path), name="swagger-ui")
+except ImportError:
+    pass
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description="REST API for Telegram Drive personal cloud storage",
+        routes=app.routes,
+        openapi_version="3.0.3",
+    )
+
+    # Add API Key security scheme
+    openapi_schema["components"]["securitySchemes"] = {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "x-api-key",
+        }
+    }
+
+    # Add security requirements to protected routes
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            if getattr(route.endpoint, "__auth_required__", False):
+                path_item = openapi_schema["paths"].get(route.path)
+                if path_item:
+                    for method in route.methods:
+                        if method.lower() in path_item:
+                            path_item[method.lower()].setdefault("security", []).append({"ApiKeyAuth": []})
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+# Include routers
+app.include_router(api_router)   # Backend REST API: /api/*
+app.include_router(web_router)   # Frontend Jinja2 Pages: /*
+app.include_router(webdav_router) # WebDAV Protocol: /webdav/*
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    from fastapi.openapi.docs import get_swagger_ui_html
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{settings.APP_NAME} - Swagger UI",
+        swagger_js_url="/swagger-ui/swagger-ui-bundle.js",
+        swagger_css_url="/swagger-ui/swagger-ui.css",
+    )
+
+
+@app.on_event("startup")
+def startup():
+    """Application startup event."""
+    init_db()
+    # Tạo admin đầu tiên từ .env nếu bảng users rỗng
+    from config.database import get_session, close_session
+    from api.auth.service import bootstrap_initial_admin
+    db = get_session()
+    try:
+        bootstrap_initial_admin(db)
+    finally:
+        close_session(db)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

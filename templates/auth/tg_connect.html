@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết nối Telegram - Telegram Drive</title>
+    <link rel="stylesheet" href="/static/css/variables.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/vendor/bootstrap/css/bootstrap.min.css">
+    <style>
+        .auth-body {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #0d6efd 0%, #0088cc 50%, #005f99 100%);
+            padding: 24px;
+        }
+        .auth-card { width: 100%; max-width: 460px; border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+        .auth-card .card-body { padding: 36px; }
+        .letter-spacing-2 { letter-spacing: 0.3em; }
+        .telegram-badge {
+            width: 64px; height: 64px; background: #0088cc; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 12px;
+        }
+    </style>
+</head>
+<body class="auth-body">
+    <div class="card auth-card">
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <div class="telegram-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#fff" viewBox="0 0 16 16">
+                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.287 5.906q-1.168.486-4.666 2.01-.567.225-.595.442c-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294q.39.01.868-.32 3.269-2.206 3.374-2.23c.05-.012.12-.026.166.016s.042.12.037.141c-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8 8 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629q.14.092.27.187c.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.4 1.4 0 0 0-.013-.315.34.34 0 0 0-.114-.217.53.53 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09"/>
+                    </svg>
+                </div>
+                <h4 class="mt-2 fw-bold text-dark">Kết nối tài khoản Telegram</h4>
+                <p class="text-muted small">Đăng nhập tài khoản thành công! Kết nối Telegram để dùng ổ đĩa đám mây.</p>
+            </div>
+
+            <!-- STEP 1: Enter Phone -->
+            <div id="stepPhone">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Số điện thoại Telegram</label>
+                    <input type="tel" class="form-control" id="phoneInput" placeholder="+84912345678" autofocus>
+                    <div class="form-text">Định dạng quốc tế (có mã quốc gia, vd: +84...)</div>
+                </div>
+
+                <div class="accordion mb-3" id="apiCredentialsAccordion">
+                    <div class="accordion-item border-0">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed py-2 px-0 bg-transparent shadow-none small text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#customApiCollapse">
+                                ⚙ Tùy chỉnh API ID / API Hash (nếu cần)
+                            </button>
+                        </h2>
+                        <div id="customApiCollapse" class="accordion-collapse collapse">
+                            <div class="accordion-body px-0 pt-2 pb-0">
+                                <div class="mb-2">
+                                    <input type="number" class="form-control form-control-sm" id="apiIdInput" placeholder="API ID (tùy chọn)">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" class="form-control form-control-sm" id="apiHashInput" placeholder="API Hash (tùy chọn)">
+                                </div>
+                                <div class="form-text small">Lấy tại <a href="https://my.telegram.org" target="_blank" rel="noopener">my.telegram.org</a>.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100 py-2 fw-semibold" id="sendCodeBtn">Gửi mã xác nhận</button>
+            </div>
+
+            <!-- STEP 2: Enter OTP Code -->
+            <div id="stepCode" style="display: none;">
+                <div class="alert alert-info py-2 small">Mã đã được gửi tới ứng dụng Telegram của bạn.</div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mã xác thực (OTP)</label>
+                    <input type="text" class="form-control text-center fs-4 letter-spacing-2" id="codeInput" placeholder="12345" maxlength="8" autocomplete="one-time-code">
+                </div>
+                <button class="btn btn-primary w-100 py-2 fw-semibold mb-2" id="verifyCodeBtn">Kết nối</button>
+                <button class="btn btn-outline-secondary w-100 py-2 btn-sm" id="backToPhoneBtn">Đổi số điện thoại</button>
+            </div>
+
+            <!-- STEP 3: 2FA Password -->
+            <div id="stepPassword" style="display: none;">
+                <div class="alert alert-warning py-2 small">Tài khoản Telegram đã bật bảo mật 2 lớp (2FA). Vui lòng nhập mật khẩu đám mây.</div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mật khẩu 2FA (Cloud Password)</label>
+                    <input type="password" class="form-control" id="twoFaPasswordInput" placeholder="Nhập mật khẩu 2FA">
+                </div>
+                <button class="btn btn-primary w-100 py-2 fw-semibold mb-2" id="verifyPasswordBtn">Hoàn tất kết nối</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        const stepPhone = document.getElementById("stepPhone");
+        const stepCode = document.getElementById("stepCode");
+        const stepPassword = document.getElementById("stepPassword");
+        const phoneInput = document.getElementById("phoneInput");
+        const apiIdInput = document.getElementById("apiIdInput");
+        const apiHashInput = document.getElementById("apiHashInput");
+        const codeInput = document.getElementById("codeInput");
+        const twoFaPasswordInput = document.getElementById("twoFaPasswordInput");
+
+        // Step 1: Send Code
+        document.getElementById("sendCodeBtn").addEventListener("click", async () => {
+            const phone = phoneInput.value.trim();
+            if (!phone) {
+                showToast("Vui lòng nhập số điện thoại", "warning");
+                return;
+            }
+            const btn = document.getElementById("sendCodeBtn");
+            btn.disabled = true;
+            btn.textContent = "Đang gửi mã...";
+
+            try {
+                const apiId = apiIdInput.value.trim() ? parseInt(apiIdInput.value.trim()) : null;
+                const apiHash = apiHashInput.value.trim() ? apiHashInput.value.trim() : null;
+                await api.post("/auth/send-code", { phone, api_id: apiId, api_hash: apiHash });
+                showToast("Mã xác thực đã được gửi!", "success");
+                stepPhone.style.display = "none";
+                stepCode.style.display = "block";
+                codeInput.focus();
+            } catch (err) {
+                showToast(err.message || "Không thể gửi mã", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Gửi mã xác nhận";
+            }
+        });
+
+        // Step 2: Verify Code
+        document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
+            const code = codeInput.value.trim();
+            if (!code) {
+                showToast("Vui lòng nhập mã xác thực", "warning");
+                return;
+            }
+            const btn = document.getElementById("verifyCodeBtn");
+            btn.disabled = true;
+            btn.textContent = "Đang kiểm tra...";
+
+            try {
+                const res = await api.post("/auth/sign-in", { code });
+                if (res.data && res.data.next_step === "password") {
+                    stepCode.style.display = "none";
+                    stepPassword.style.display = "block";
+                    twoFaPasswordInput.focus();
+                } else {
+                    showToast("Kết nối Telegram thành công!", "success");
+                    setTimeout(() => window.location.href = "/", 800);
+                }
+            } catch (err) {
+                showToast(err.message || "Mã không đúng hoặc đã hết hạn", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Kết nối";
+            }
+        });
+
+        // Step 3: Verify 2FA Password
+        document.getElementById("verifyPasswordBtn").addEventListener("click", async () => {
+            const password = twoFaPasswordInput.value;
+            if (!password) {
+                showToast("Vui lòng nhập mật khẩu 2FA", "warning");
+                return;
+            }
+            const btn = document.getElementById("verifyPasswordBtn");
+            btn.disabled = true;
+            btn.textContent = "Đang xác thực...";
+
+            try {
+                await api.post("/auth/check-password", { password });
+                showToast("Kết nối Telegram thành công!", "success");
+                setTimeout(() => window.location.href = "/", 800);
+            } catch (err) {
+                showToast(err.message || "Mật khẩu không chính xác", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Hoàn tất kết nối";
+            }
+        });
+
+        document.getElementById("backToPhoneBtn").addEventListener("click", () => {
+            stepCode.style.display = "none";
+            stepPhone.style.display = "block";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Analytics - Telegram Drive{% endblock %}
+
+{% block content %}
+<div class="storage-page">
+    <h2 class="mb-4">Phân tích Lưu trữ</h2>
+
+    <!-- Storage Summary + Donut -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Tổng quan Dung lượng <span class="text-muted small">({{ stats.total_file_count }} file)</span></h5>
+                </div>
+                <div class="card-body">
+                    <div class="donut-wrap text-center">
+                        <svg viewBox="0 0 42 42" class="donut"
+                             style="--percentage: {{ donut_percent if donut_percent is defined else 25 }}%;">
+                            <circle class="donut-hole" cx="21" cy="21" r="15.9155"></circle>
+                            {% if stats.mime_types %}
+                            {% set ns = namespace(acc=0) %}
+                            {% for item in stats.mime_types[:10] %}
+                            {% set ns.acc = ns.acc + item.percent %}
+                            <circle class="donut-seg seg-{{ loop.index0 }}" cx="21" cy="21" r="15.9155"
+                                    style="--seg-color: {{ item.color }}; --seg-start: {{ (ns.acc - item.percent) * 3.6 }}deg; --seg-end: {{ ns.acc * 3.6 }}deg;"></circle>
+                            {% endfor %}
+                            {% endif %}
+                            <text x="21" y="20" text-anchor="middle" class="donut-total">{{ (stats.total_storage_used_bytes / 1024 / 1024)|round(1) }} MB</text>
+                            <text x="21" y="25" text-anchor="middle" class="donut-label">đã dùng</text>
+                        </svg>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <span class="text-muted">Đã sử dụng:</span>
+                        <strong>{{ (stats.total_storage_used_bytes / 1024 / 1024 / 1024)|round(2) }} GB</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Tổng số file:</span>
+                        <strong>{{ stats.total_file_count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIME Types Breakdown with COLORS -->
+        <div class="col-md-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Phân bố theo Loại File (theo màu)</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.mime_types %}
+                    <!-- Stacked colorful bar -->
+                    <div class="stacked-bar mb-4">
+                        {% for item in stats.mime_types[:12] %}
+                        <div class="stacked-seg" style="flex-basis: {{ item.percent }}%; background: {{ item.color }};"
+                             title="{{ item.label }} {{ item.percent }}%"></div>
+                        {% endfor %}
+                    </div>
+                    <!-- Legend list -->
+                    <ul class="list-group list-group-flush file-type-list">
+                        {% for item in stats.mime_types[:15] %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="d-flex align-items-center">
+                                <span class="color-dot me-2" style="background: {{ item.color }};"></span>
+                                <span class="fw-medium">{{ item.label }}</span>
+                                <span class="text-muted ms-2 small">{{ item.mime_type }}</span>
+                            </span>
+                            <span class="d-flex align-items-center">
+                                <span class="badge bg-light text-dark border me-2">{{ item.file_count }} file</span>
+                                <small class="text-muted me-2">{{ (item.size_bytes / 1024 / 1024)|round(2) }} MB</small>
+                                <strong class="text-secondary">{{ item.percent }}%</strong>
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center py-4">Chưa có dữ liệu.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplicate Files Finder -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">File Trùng lặp</h5>
+            <span class="badge bg-warning text-dark">{{ duplicates|length }} nhóm trùng lặp</span>
+        </div>
+        <div class="card-body">
+            {% if duplicates %}
+            {% for group in duplicates %}
+            <div class="border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>{{ group.name }}</strong>
+                    <span class="text-muted">{{ (group.size / 1024)|round(1) }} KB / file</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Thư mục</th>
+                                <th>Ngày tải lên</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in group.files %}
+                            <tr>
+                                <td>{{ f.message_id }}</td>
+                                <td>{{ f.folder_name or 'Saved Messages' }}</td>
+                                <td>{{ f.created_at }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteFile({{ f.message_id }})">Xóa bản sao</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center py-4">Không tìm thấy file trùng lặp nào. Hệ thống lưu trữ tối ưu!</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .donut-wrap { max-width: 220px; margin: 0 auto; }
+    .donut {
+        width: 100%;
+        height: auto;
+        transform: rotate(-90deg);
+        transform-origin: center;
+    }
+    .donut-hole {
+        fill: transparent;
+        stroke: #e9ecef;
+        stroke-width: 4;
+    }
+    .donut-seg {
+        fill: transparent;
+        stroke: var(--seg-color);
+        stroke-width: 4;
+        stroke-dasharray: calc(var(--seg-end) - var(--seg-start)) 100;
+        stroke-dashoffset: var(--seg-start);
+        transition: stroke-dasharray 0.4s ease;
+    }
+    .donut-total {
+        font-size: 6px;
+        font-weight: bold;
+        fill: #212529;
+        transform: rotate(90deg);
+        transform-origin: 21px 21px;
+    }
+    .donut-label {
+        font-size: 3.5px;
+        fill: #6c757d;
+        transform: rotate(90deg);
+        transform-origin: 21px 21px;
+    }
+    .stacked-bar {
+        display: flex;
+        height: 18px;
+        border-radius: 9px;
+        overflow: hidden;
+        background: #e9ecef;
+    }
+    .stacked-seg { height: 100%; min-width: 0; transition: filter 0.2s; }
+    .stacked-seg:hover { filter: brightness(1.15); }
+    .color-dot { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+    .file-type-list .list-group-item { padding: 8px 4px; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".donut-seg").forEach((c, i) => {
+            // Khởi tạo segment qua CSS vars đã set sẵn
+        });
+    });
+    async function deleteFile(id) {
+        if (!confirm("Bạn có chắc muốn xóa bản sao này?")) return;
+        try {
+            await api.delete(`/files/${id}`);
+            showToast("Đã xóa bản sao", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Xóa thất bại", "error");
+        }
+    }
+</script>
+{% endblock %}

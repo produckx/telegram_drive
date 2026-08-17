@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+*.pid
+
+# Runtime / uploads (user data)
+uploads/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.playwright-mcp/
+
+# Alembic (keep migration versions, ignore local db state)
+alembic/versions/*.pyc

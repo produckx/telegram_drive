@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Telegram Drive{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Chào mừng{% if user %}, {{ user.first_name }}{% endif %}! 👋</h2>
+            {% if is_superuser and user and user.username %}
+            <small class="text-muted">
+                Đã đăng nhập Telegram:
+                <span class="badge bg-success">✓</span>
+                @{{ user.username }}
+                <a href="/api/auth/logout" class="text-danger ms-2 small" onclick="event.preventDefault(); logout()">Đăng xuất</a>
+            </small>
+            {% endif %}
+        </div>
+        <div>
+            <a href="/files" class="btn btn-primary">Xem tất cả File</a>
+            <a href="/folders" class="btn btn-outline-primary ms-2">Xem Thư mục</a>
+        </div>
+    </div>
+
+    <!-- Storage Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Dung lượng Saved Messages</h5>
+                    <h2 class="display-6">{{ (stats.total_storage_used_bytes / 1024 / 1024)|round(2) }} MB</h2>
+                    <p class="card-text">{{ stats.total_storage_used_bytes }} bytes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">File trong Saved Messages</h5>
+                    <h2 class="display-6">{{ stats.total_file_count }}</h2>
+                    <p class="card-text">File đã được lưu trữ</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Thư mục (Kênh [TD])</h5>
+                    <h2 class="display-6">{{ folders|length }}</h2>
+                    <p class="card-text">Kênh Telegram kết nối</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Recent Files -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">File gần đây (Saved Messages)</h5>
+                    <a href="/files" class="btn btn-sm btn-link">Xem thêm</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_files %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tên file</th>
+                                    <th>Kích thước</th>
+                                    <th>Loại</th>
+                                    <th>Thời gian</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in recent_files %}
+                                <tr>
+                                    <td><a href="/api/files/{{ file.message_id }}/download" class="text-decoration-none">{{ file.name }}</a></td>
+                                    <td>{{ (file.size / 1024)|round(1) }} KB</td>
+                                    <td><span class="badge bg-secondary">{{ file.mime_type or 'Unknown' }}</span></td>
+                                    <td>{{ file.created_at.strftime('%d/%m/%Y %H:%M') if file.created_at else '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">Chưa có file nào trong Saved Messages. Hãy tải lên file đầu tiên!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Folders Overview -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Thư mục (Kênh Telegram)</h5>
+                    <a href="/folders" class="btn btn-sm btn-link">Quản lý</a>
+                </div>
+                <div class="card-body">
+                    {% if folders %}
+                    <ul class="list-group list-group-flush">
+                        {% for folder in folders[:8] %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder me-2" viewBox="0 0 16 16">
+                                    <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31z"/>
+                                </svg>
+                                {{ folder.name }}
+                            </span>
+                            <a href="/files?folder_id={{ folder.id }}" class="btn btn-sm btn-outline-primary">Mở</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center py-4">Chưa có thư mục [TD] nào.</p>
+                    <a href="/folders" class="btn btn-outline-primary w-100">Tạo thư mục mới</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function logout() {
+        try {
+            await api.post("/auth/logout", {});
+        } catch (e) {}
+        window.location.href = "/auth/login";
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}File Manager - Telegram Drive{% endblock %}
+
+{% block content %}
+<div class="files-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Quản lý File</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/>
+            </svg>
+            Tải lên
+        </button>
+    </div>
+
+    <!-- Filter and Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" name="search" placeholder="Tìm kiếm file..." value="{{ search or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="folder_id">
+                        <option value="">Tất cả thư mục</option>
+                        {% for folder in folders %}
+                        <option value="{{ folder.id }}" {% if current_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-primary w-100">Lọc</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="/files" class="btn btn-outline-secondary w-100">Xóa lọc</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Files Table -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Tổng cộng: {{ total }} file</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Lưới">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary active" id="listViewBtn" title="Danh sách">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- List View -->
+        <div id="listView">
+            {% if files %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll"></th>
+                            <th>Tên file</th>
+                            <th>Kích thước</th>
+                            <th>Loại</th>
+                            <th>Thư mục</th>
+                            <th>Ngày tải lên</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in files %}
+                        <tr data-id="{{ file.message_id }}">
+                            <td><input type="checkbox" class="file-checkbox" value="{{ file.message_id }}"></td>
+                            <td>
+                                <span class="d-flex align-items-center gap-2">
+                                    <span class="text-muted">📄</span>
+                                    {{ file.name }}
+                                </span>
+                            </td>
+                            <td>{{ (file.size / 1024)|round(1) }} KB</td>
+                            <td><span class="badge bg-secondary">{{ file.mime_type or 'Unknown' }}</span></td>
+                            <td>{{ file.folder_name or 'Saved Messages' }}</td>
+                            <td>{{ file.created_at.strftime('%d/%m/%Y') if file.created_at else '-' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/api/files/{{ file.message_id }}/download" class="btn btn-outline-primary">Tải</a>
+                                    <button class="btn btn-outline-danger" onclick="deleteFile({{ file.message_id }})">Xóa</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted">Không có file nào{% if search %} khớp với "{{ search }}"{% endif %}.</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">Tải file lên ngay</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Grid View -->
+        <div id="gridView" style="display:none;" class="p-3">
+            <div class="file-grid">
+                {% for file in files %}
+                <div class="file-card">
+                    <div class="file-card-icon">📄</div>
+                    <div class="file-card-name" title="{{ file.name }}">{{ file.name }}</div>
+                    <div class="file-card-meta">{{ (file.size / 1024)|round(1) }} KB</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <nav class="mt-4" aria-label="File pagination">
+        <ul class="pagination justify-content-center">
+            {% for i in range(1, total_pages + 1) %}
+            <li class="page-item {% if i == page %}active{% endif %}">
+                <a class="page-link" href="/files?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if current_folder_id %}&folder_id={{ current_folder_id }}{% endif %}">{{ i }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tải lên File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="drop-zone mb-3" id="dropZone">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-upload" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383"/>
+                        <path fill-rule="evenodd" d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708z"/>
+                    </svg>
+                    <p class="mt-2">Kéo và thả file vào đây hoặc <strong>chọn file</strong></p>
+                    <input type="file" id="fileInput" class="visually-hidden" multiple>
+                </div>
+                <div id="selectedFilesInfo" class="mb-3" style="display:none; max-height:160px; overflow-y:auto; font-size:13px;"></div>
+                <select class="form-select" id="folderSelect">
+                    <option value="">Saved Messages (mặc định)</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}" {% if current_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="uploadBtn">Tải lên</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/utils.js"></script>
+<script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+
+    // View toggle
+    const listViewBtn = $("listViewBtn"), gridViewBtn = $("gridViewBtn");
+    if (listViewBtn) listViewBtn.addEventListener("click", () => {
+        const lv = $("listView"), gv = $("gridView");
+        if (lv) lv.style.display = "";
+        if (gv) gv.style.display = "none";
+    });
+    if (gridViewBtn) gridViewBtn.addEventListener("click", () => {
+        const lv = $("listView"), gv = $("gridView");
+        if (lv) lv.style.display = "none";
+        if (gv) gv.style.display = "";
+    });
+
+    // Select all (chỉ tồn tại khi có file)
+    const selectAll = $("selectAll");
+    if (selectAll) selectAll.addEventListener("change", (e) => {
+        document.querySelectorAll(".file-checkbox").forEach(cb => cb.checked = e.target.checked);
+    });
+
+    // Delete file
+    window.deleteFile = async function(id) {
+        if (!confirm("Bạn có chắc muốn xóa file này?")) return;
+        try {
+            await api.delete(`/files/${id}`);
+            showToast("File đã được xóa", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Xóa thất bại", "error");
+        }
+    }
+
+    // ---------------- Upload modal ----------------
+    const dropZone = $("dropZone");
+    const fileInput = $("fileInput");
+    const uploadBtn = $("uploadBtn");
+    const folderSelect = $("folderSelect");
+    let selectedFiles = [];
+
+    function renderSelectedFiles() {
+        const info = $("selectedFilesInfo");
+        if (!info) return;
+        if (selectedFiles.length === 0) {
+            info.style.display = "none";
+        } else {
+            info.style.display = "block";
+            info.innerHTML = selectedFiles.map((f, i) =>
+                `<div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-truncate me-2">📄 ${f.name}</span>
+                    <button type="button" class="btn-close btn-sm" onclick="removeSelectedFile(${i})"></button>
+                </div>`
+            ).join("");
+        }
+        if (uploadBtn) {
+            uploadBtn.disabled = selectedFiles.length === 0;
+            uploadBtn.textContent = selectedFiles.length > 0
+                ? `Tải lên (${selectedFiles.length})`
+                : "Tải lên";
+        }
+    }
+
+    window.removeSelectedFile = (i) => {
+        selectedFiles.splice(i, 1);
+        renderSelectedFiles();
+    };
+
+    if (dropZone && fileInput && uploadBtn) {
+        // Click to open file picker
+        dropZone.addEventListener("click", () => fileInput.click());
+
+        // File picker changed
+        fileInput.addEventListener("change", (e) => {
+            selectedFiles = Array.from(e.target.files || []);
+            renderSelectedFiles();
+            fileInput.value = "";
+        });
+
+        // Drag & drop on the dropzone
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add("dragover");
+        });
+        dropZone.addEventListener("dragleave", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove("dragover");
+        });
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove("dragover");
+            const dropped = Array.from(e.dataTransfer.files || []);
+            if (dropped.length) {
+                selectedFiles = [...selectedFiles, ...dropped];
+                renderSelectedFiles();
+            }
+        });
+
+        // Upload
+        uploadBtn.addEventListener("click", async () => {
+            if (!selectedFiles.length) {
+                showToast("Vui lòng chọn file", "warning");
+                return;
+            }
+            const folderId = folderSelect ? folderSelect.value : "";
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = "Đang tải lên...";
+            let ok = 0, fail = 0;
+
+            for (const file of selectedFiles) {
+                const formData = new FormData();
+                formData.append("file", file, file.name);
+                if (folderId) formData.append("folder_id", folderId);
+
+                try {
+                    await api.upload("/files", formData);
+                    ok++;
+                } catch (err) {
+                    fail++;
+                    console.error(`Upload ${file.name} failed:`, err);
+                }
+            }
+
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "Tải lên";
+
+            if (ok > 0) {
+                showToast(`Đã tải lên ${ok} file thành công`, "success");
+                location.reload();
+            }
+            if (fail > 0) {
+                showToast(`${fail} file tải lên thất bại`, "error");
+            }
+        });
+
+        // Init disabled state
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = "Tải lên";
+
+        // Auto-select current folder EVERY TIME the modal opens (read from URL)
+        const uploadModal = $("uploadModal");
+        if (uploadModal && folderSelect) {
+            uploadModal.addEventListener("show.bs.modal", () => {
+                const params = new URLSearchParams(window.location.search);
+                const urlFolderId = params.get("folder_id") || "";
+                folderSelect.value = urlFolderId;
+            });
+        }
+
+        // Reset list when modal closes
+        if (uploadModal) uploadModal.addEventListener("hidden.bs.modal", () => {
+            selectedFiles = [];
+            renderSelectedFiles();
+        });
+
+        // ---- Global drop protection: drop file anywhere on page -> open picker ----
+        ["dragover", "drop"].forEach((ev) =>
+            window.addEventListener(ev, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            })
+        );
+        // Drop anywhere (outside dropzone) still adds files
+        window.addEventListener("drop", (e) => {
+            const dropped = Array.from(e.dataTransfer && e.dataTransfer.files || []);
+            if (dropped.length && !dropZone.contains(e.target)) {
+                selectedFiles = [...selectedFiles, ...dropped];
+                renderSelectedFiles();
+                e.preventDefault();
+            }
+        });
+    }
+</script>
+{% endblock %}

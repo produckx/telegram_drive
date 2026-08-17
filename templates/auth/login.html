@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Telegram Drive</title>
+    <link rel="stylesheet" href="/static/css/variables.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/vendor/bootstrap/css/bootstrap.min.css">
+    <style>
+        .auth-body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0d6efd 0%, #0088cc 50%, #005f99 100%);
+            padding: 24px;
+        }
+        .auth-card { width: 100%; max-width: 420px; border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+        .auth-card .card-body { padding: 34px; }
+        .telegram-badge {
+            width: 60px; height: 60px; background: #0088cc; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 12px;
+        }
+    </style>
+</head>
+<body class="auth-body">
+    <div class="card auth-card">
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <div class="telegram-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" fill="#fff" viewBox="0 0 16 16">
+                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.287 5.906q-1.168.486-4.666 2.01-.567.225-.595.442c-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294q.39.01.868-.32 3.269-2.206 3.374-2.23c.05-.012.12-.026.166.016s.042.12.037.141c-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8 8 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629q.14.092.27.187c.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.4 1.4 0 0 0-.013-.315.34.34 0 0 0-.114-.217.53.53 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09"/>
+                    </svg>
+                </div>
+                <h4 class="fw-bold text-dark">Telegram Drive</h4>
+                <p class="text-muted small">Đăng nhập để sử dụng ổ đĩa đám mây</p>
+            </div>
+
+            <div id="alertDiv"></div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Email</label>
+                <input type="email" class="form-control" id="email" placeholder="email@example.com" autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Mật khẩu</label>
+                <input type="password" class="form-control" id="password" placeholder="Nhập mật khẩu">
+            </div>
+
+            <button class="btn btn-primary w-100 py-2 fw-semibold" id="loginBtn">Đăng nhập</button>
+
+            <hr>
+            <p class="text-center mb-0 small">Chưa có tài khoản? <a href="/auth/register">Đăng ký</a></p>
+        </div>
+    </div>
+
+    <script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        document.getElementById("loginBtn").addEventListener("click", async () => {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            if (!email || !password) {
+                showToast("Vui lòng nhập email và mật khẩu", "warning");
+                return;
+            }
+            const btn = document.getElementById("loginBtn");
+            btn.disabled = true;
+            btn.textContent = "Đang đăng nhập...";
+
+            try {
+                const res = await api.post("/auth/login", { email, password });
+                showToast("Đăng nhập thành công!", "success");
+                setTimeout(() => window.location.href = "/", 800);
+            } catch (err) {
+                let msg = err.message || "Đăng nhập thất bại";
+                if (msg.includes("chưa được kích hoạt")) {
+                    msg = "Tài khoản chưa được kích hoạt. Vui lòng liên hệ quản trị viên.";
+                }
+                showToast(msg, "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Đăng nhập";
+            }
+        });
+    </script>
+</body>
+</html>

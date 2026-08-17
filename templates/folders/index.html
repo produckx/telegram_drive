@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Folders - Telegram Drive{% endblock %}
+
+{% block content %}
+<div class="folders-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Quản lý Thư mục</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31z"/>
+            </svg>
+            Tạo thư mục mới
+        </button>
+    </div>
+
+    <!-- Folders Grid -->
+    <div class="row g-4">
+        {% if folders %}
+        {% for folder in folders %}
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-2 me-3">📁</span>
+                                <div>
+                                    <h5 class="card-title mb-0">{{ folder.name }}</h5>
+                                    <small class="text-muted">{{ folder.username or 'Riêng tư' }}</small>
+                                    <div class="mt-1">
+                                        {% if not folder.is_owner %}
+                                        <span class="badge bg-secondary">Của người khác</span>
+                                        {% endif %}
+                                        {% if folder.is_public %}
+                                        <span class="badge bg-success">Công khai</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% if folder.is_owner %}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link text-muted" data-bs-toggle="dropdown">⋮</button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="/files?folder_id={{ folder.id }}">Xem file</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="renameFolder({{ folder.id }}, '{{ folder.name }}')">Đổi tên</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="toggleVisibility({{ folder.id }}, {{ 'true' if folder.is_public else 'false' }})">{{ 'Chuyển riêng tư' if folder.is_public else 'Công khai thư mục' }}</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder({{ folder.id }})">Xóa</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span><i class="bi bi-file-earmark me-1"></i>Số file: <strong>{{ folder.file_count }}</strong></span>
+                        <span>{{ 'Công khai' if folder.is_public else 'Riêng tư' }}</span>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top-0 pt-0">
+                    <a href="/files?folder_id={{ folder.id }}" class="btn btn-outline-primary btn-sm w-100">Mở thư mục</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="card text-center py-5">
+                <div class="card-body">
+                    <p class="text-muted mb-3">Chưa có thư mục nào được tạo.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFolderModal">Tạo thư mục đầu tiên</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Folder Modal -->
+<div class="modal fade" id="createFolderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tạo Thư mục Mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Tên thư mục</label>
+                    <input type="text" class="form-control" id="folderName" placeholder="vd: Tài liệu học tập">
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="isPublic">
+                    <label class="form-check-label" for="isPublic">Công khai (cho người khác xem)</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="saveFolderBtn">Tạo</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById("isPublic").addEventListener("change", (e) => {
+        document.getElementById("usernameGroup").style.display = e.target.checked ? "" : "none";
+    });
+
+    document.getElementById("saveFolderBtn").addEventListener("click", async () => {
+        const name = document.getElementById("folderName").value.trim();
+        if (!name) { showToast("Vui lòng nhập tên thư mục", "warning"); return; }
+
+        const isPublic = document.getElementById("isPublic").checked;
+        const username = isPublic ? document.getElementById("folderUsername").value.trim() : null;
+
+        try {
+            await api.post("/folders", { name, is_public: isPublic, username });
+            showToast("Thư mục đã được tạo", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Tạo thư mục thất bại", "error");
+        }
+    });
+
+    async function renameFolder(id, currentName) {
+        const newName = prompt("Nhập tên mới cho thư mục:", currentName);
+        if (!newName || newName === currentName) return;
+
+        try {
+            await api.patch(`/folders/${id}`, { name: newName });
+            showToast("Đã đổi tên thư mục", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Đổi tên thất bại", "error");
+        }
+    }
+
+    async function deleteFolder(id) {
+        if (!confirm("Bạn có chắc muốn xóa thư mục này?")) return;
+
+        try {
+            await api.delete(`/folders/${id}`);
+            showToast("Thư mục đã được xóa", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Xóa thất bại", "error");
+        }
+    }
+
+    async function toggleVisibility(id, isPublic) {
+        const newState = !isPublic;
+        const msg = newState ? "Công khai thư mục này?" : "Chuyển thư mục thành riêng tư?";
+        if (!confirm(msg)) return;
+        try {
+            await api.post(`/folders/${id}/visibility`, { is_public: newState });
+            showToast(newState ? "Đã công khai thư mục" : "Đã chuyển riêng tư", "success");
+            location.reload();
+        } catch (err) {
+            showToast(err.message || "Lỗi", "error");
+        }
+    }
+</script>
+{% endblock %}
