@@ -33,6 +33,7 @@ uploads/
 *.swp
 *.swo
 __init__.py
+rules_fastapi.md
 
 # OS
 .DS_Store
