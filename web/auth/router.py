@@ -9,15 +9,16 @@ router = APIRouter(prefix="/auth", tags=["Web Auth"])
 
 
 @router.post("/logout")
-async def logout(request: Request, response: Response):
-    response.delete_cookie("tdrive_token")
+async def logout(request: Request):
+    resp = RedirectResponse(url="/auth/login", status_code=303)
+    resp.delete_cookie("tdrive_token", path="/")
     current_user = get_current_user(request)
     if current_user and current_user.is_active:
         try:
             await telegram_manager.logout(current_user.id)
         except Exception:
             pass
-    return RedirectResponse(url="/auth/login", status_code=303)
+    return resp
 
 
 @router.get("/login", response_class=_TemplateResponse)

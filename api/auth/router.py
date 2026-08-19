@@ -72,6 +72,7 @@ async def login(data: LoginRequest, request: Request, response: Response):
         response.set_cookie(
             key="tdrive_token",
             value=token,
+            path="/",
             max_age=60 * 60 * 24 * 7,
             httponly=True,
             samesite="lax",
@@ -131,7 +132,6 @@ def update_user(user_id: int, data: AdminUpdateRequest, request: Request):
 @router.post("/logout", summary="Đăng xuất (tài khoản + Telegram)")
 @require_auth
 async def logout(request: Request, response: Response):
-    response.delete_cookie("tdrive_token")
     from config.auth import get_current_user
     current_user = get_current_user(request)
     if current_user and current_user.is_active:
@@ -139,6 +139,7 @@ async def logout(request: Request, response: Response):
             await telegram_manager.logout(current_user.id)
         except Exception:
             pass
+    response.delete_cookie("tdrive_token", path="/")
     return {"success": True, "message": "Đã đăng xuất"}
 
 

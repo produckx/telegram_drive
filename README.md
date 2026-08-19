@@ -126,36 +126,52 @@ Màn hình đăng nhập có ô **API Server URL** — mặc định `http://loc
 
 ## API Endpoints chính
 
-| Method | Path | Mô tả |
-|--------|------|-------|
-| POST | `/api/auth/register` | Đăng ký tài khoản (mặc định **disable**) |
-| POST | `/api/auth/login` | Đăng nhập tài khoản (cần được admin kích hoạt) |
-| GET | `/api/auth/me` | Thông tin tài khoản hiện tại |
-| GET | `/api/auth/users` | Danh sách tài khoản (admin) |
-| PATCH | `/api/auth/users/{id}` | Kích hoạt/vô hiệu hóa/nâng admin (admin) |
-| POST | `/api/auth/send-code` | Gửi mã OTP đến số điện thoại Telegram |
-| POST | `/api/auth/sign-in` | Xác thực mã OTP |
-| POST | `/api/auth/check-password` | Xác thực mật khẩu 2FA |
-| POST | `/api/auth/qr/start` | Tạo URL mã QR đăng nhập |
-| GET | `/api/auth/qr/poll` | Poll trạng thái quét QR |
-| GET | `/api/auth/status` | Trạng thái tài khoản + kết nối Telegram |
-| POST | `/api/auth/logout` | Đăng xuất (tài khoản + Telegram) |
-| GET | `/api/files?folder_id=` | Danh sách file (bỏ folder_id = Saved Messages) |
-| POST | `/api/files` | Upload file lên Telegram |
-| GET | `/api/files/{id}/download` | Download / Stream video (hỗ trợ HTTP 206 Range) |
-| PATCH | `/api/files/{id}` | Đổi tên file |
-| POST | `/api/files/{id}/move` | Di chuyển file giữa các thư mục |
-| DELETE | `/api/files/{id}` | Xóa file |
-| GET | `/api/folders` | Danh sách thư mục (kênh [TD]) |
-| POST | `/api/folders` | Tạo thư mục mới (tạo kênh Telegram) |
-| PATCH | `/api/folders/{id}` | Đổi tên thư mục |
-| DELETE | `/api/folders/{id}` | Xóa thư mục |
-| GET | `/api/storage/stats` | Thống kê dung lượng, phân bố theo MIME |
-| GET | `/api/storage/duplicates` | Tìm file trùng lặp |
-| POST | `/api/shares` | Tạo link chia sẻ (password/expiry) |
-| GET | `/d/{token}` | Trang chia sẻ file công khai |
-| OPTIONS/PROPFIND/GET/PUT/DELETE | `/webdav/{token}/...` | WebDAV access |
-| GET | `/admin/users` | Trang quản lý tài khoản (admin) |
+| Method | Path | Mô tả | Auth |
+|--------|------|-------|------|
+| POST | `/api/auth/register` | Đăng ký tài khoản (mặc định **disable**, tối đa 50 tài khoản/IP) | Public |
+| POST | `/api/auth/login` | Đăng nhập tài khoản (cần được admin kích hoạt) | Public |
+| GET | `/api/auth/me` | Thông tin tài khoản hiện tại | ✅ JWT |
+| GET | `/api/auth/users` | Danh sách tài khoản (chỉ admin) | ✅ JWT |
+| PATCH | `/api/auth/users/{id}` | Kích hoạt/vô hiệu hóa/nâng admin (chỉ admin) | ✅ JWT |
+| POST | `/api/auth/logout` | Đăng xuất (tài khoản + Telegram) | ✅ JWT |
+| POST | `/api/auth/send-code` | Gửi mã OTP đến số điện thoại Telegram | ✅ JWT |
+| POST | `/api/auth/sign-in` | Xác thực mã OTP | ✅ JWT |
+| POST | `/api/auth/check-password` | Xác thực mật khẩu 2FA | ✅ JWT |
+| POST | `/api/auth/qr/start` | Tạo URL mã QR đăng nhập | ✅ JWT |
+| GET | `/api/auth/qr/poll` | Poll trạng thái quét QR | ✅ JWT |
+| GET | `/api/auth/status` | Trạng thái tài khoản hiện tại + kết nối Telegram | Public |
+| GET | `/api/files` | Danh sách file (trả về **toàn bộ file**, không phân trang) | ✅ JWT |
+| POST | `/api/files` | Upload file lên Telegram | ✅ JWT |
+| GET | `/api/files/{id}/download` | Download / Stream video (hỗ trợ HTTP 206 Range) | ✅ JWT |
+| PATCH | `/api/files/{id}` | Đổi tên file | ✅ JWT |
+| POST | `/api/files/{id}/move` | Di chuyển file giữa các thư mục | ✅ JWT |
+| DELETE | `/api/files/{id}` | Xóa file | ✅ JWT |
+| GET | `/api/folders` | Danh sách thư mục (kênh [TD]) | ✅ JWT |
+| POST | `/api/folders` | Tạo thư mục mới | ✅ JWT |
+| PATCH | `/api/folders/{id}` | Đổi tên thư mục | ✅ JWT |
+| DELETE | `/api/folders/{id}` | Xóa thư mục | ✅ JWT |
+| GET | `/api/storage/stats` | Thống kê dung lượng, phân bố theo MIME | ✅ JWT |
+| GET | `/api/storage/duplicates` | Tìm file trùng lặp | ✅ JWT |
+| POST | `/api/shares` | Tạo link chia sẻ (password/expiry) | ✅ JWT |
+| GET | `/d/{token}` | Trang chia sẻ file công khai | Public |
+| OPTIONS/PROPFIND/GET/PUT/DELETE | `/webdav/{token}/...` | WebDAV access | Token |
+| GET | `/admin/users` | Trang quản lý tài khoản | Admin |
+
+**Ghi chú:**
+- ✅ JWT: Yêu cầu truyền token trong header `Authorization: Bearer <token>` hoặc cookie `tdrive_token`
+- Lock icon (🔒) trên Swagger UI xác định endpoint yêu cầu xác thực
+- Rate limit: 20 requests/giây/người dùng (chưa login thì tính theo IP)
+
+## Tính năng bảo mật
+
+- **Xác thực JWT**: Token dùng cho mọi API yêu cầu login (header `Authorization: Bearer <token>` hoặc cookie `tdrive_token`)
+- **Lock icon (🔒)**: Trên Swagger UI, các endpoint có ổ khóa là endpoint yêu cầu xác thực
+- **Rate limiting**: 20 requests/giây/người dùng (chưa login thì tính theo IP công cộng)
+- **Brute-force protection**: 5 lần đăng nhập sai → khóa 15 phút theo email+IP
+- **Registration limit**: Tối đa 50 tài kản được đăng ký từ cùng một IP công cộng
+- **SQL Injection**: Sử dụng SQLAlchemy ORM (tránh raw SQL)
+- **Password hashing**: bcrypt với work factor 12
+- **Session tách biệt**: Mỗi user có StringSession Telegram riêng → bảo vệ quyền riêng tư
 
 ## Tính năng đã port từ Old_Project
 
