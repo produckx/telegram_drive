@@ -15,7 +15,7 @@ Telegram MTProto ──► Telethon (Python) ──► FastAPI BE (port 8000)
                                               ├── Swagger API: /docs
                                               ├── Share Links: /d/{token}
                                               └── WebDAV: /webdav/{token}/
-└── Flutter App (Desktop / Android / Web) ──► FastAPI BE  [Link App](https://github.com/produckx/teledrive_app)
+└── Flutter App (Desktop / Android / Web) ──► FastAPI BE 
 ```
 
 ## Cấu trúc thư mục
@@ -104,6 +104,7 @@ Hệ thống có **tài khoản người dùng** lưu trong PostgreSQL + **kết
 - Quản lý tài khoản (`/admin/users`) → chỉ admin (superuser) truy cập.
 
 ## Cài đặt & chạy Flutter App
+- [Link App Project](https://github.com/produckx/teledrive_app)
 
 ```powershell
 cd New_Project/App_Flutter
