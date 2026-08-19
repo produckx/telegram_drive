@@ -15,7 +15,7 @@ Telegram MTProto ──► Telethon (Python) ──► FastAPI BE (port 8000)
                                               ├── Swagger API: /docs
                                               ├── Share Links: /d/{token}
                                               └── WebDAV: /webdav/{token}/
-└── Flutter App (Desktop / Android / Web) ──► FastAPI BE
+└── Flutter App (Desktop / Android / Web) ──► FastAPI BE  [Link App](https://github.com/produckx/teledrive_app)
 ```
 
 ## Cấu trúc thư mục
