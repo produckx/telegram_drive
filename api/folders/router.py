@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from config.auth import require_user
+from config.auth import require_user, require_auth
 from api.folders.catalog import (
     create_folder,
     update_folder,
@@ -34,6 +34,7 @@ class VisibilityRequest(BaseModel):
 
 
 @router.get("", summary="Danh sách thư mục", description="User thấy folders của mình + folders công khai. Admin thấy tất cả.")
+@require_auth
 async def list_folders(request: Request):
     user = require_user(request)
     db = get_session()
@@ -56,6 +57,7 @@ async def list_folders(request: Request):
 
 
 @router.post("", summary="Tạo thư mục mới", description="Tạo thư mục trong database (không tạo kênh Telegram).")
+@require_auth
 async def create_folder_endpoint(data: CreateFolderRequest, request: Request):
     user = require_user(request)
     if not data.name or not data.name.strip():
@@ -85,6 +87,7 @@ async def create_folder_endpoint(data: CreateFolderRequest, request: Request):
 
 
 @router.patch("/{folder_id}", summary="Đổi tên thư mục", description="Chỉ chủ sở hữu hoặc admin mới đổi tên được.")
+@require_auth
 async def rename_folder(folder_id: int, data: RenameFolderRequest, request: Request):
     user = require_user(request)
     db = get_session()
@@ -101,6 +104,7 @@ async def rename_folder(folder_id: int, data: RenameFolderRequest, request: Requ
 
 
 @router.post("/{folder_id}/visibility", summary="Công khai / riêng tư thư mục", description="Chỉ chủ sở hữu hoặc admin đổi được.")
+@require_auth
 async def toggle_visibility(folder_id: int, data: VisibilityRequest, request: Request):
     user = require_user(request)
     db = get_session()
@@ -115,6 +119,7 @@ async def toggle_visibility(folder_id: int, data: VisibilityRequest, request: Re
 
 
 @router.delete("/{folder_id}", summary="Xóa thư mục", description="Chỉ chủ sở hữu hoặc admin mới xóa được. File trong thư mục sẽ chuyển về không có thư mục.")
+@require_auth
 async def delete_folder_endpoint(folder_id: int, request: Request):
     user = require_user(request)
     db = get_session()

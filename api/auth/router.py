@@ -6,7 +6,7 @@ from api.auth.schema import LoginRequest, LoginResponse, RegisterRequest, UserOu
 from api.auth import service as user_service
 from api.auth.repo import User
 from config.database import get_session, close_session
-from config.auth import require_user, require_superuser, require_user_id
+from config.auth import require_user, require_superuser, require_user_id, require_auth
 from config.settings import settings
 from config.rate_limit import login_guard, get_client_ip
 from core.telegram_client import telegram_manager
@@ -88,12 +88,14 @@ async def login(data: LoginRequest, request: Request, response: Response):
 
 
 @router.get("/me", summary="Thông tin tài khoản hiện tại", description="Xem thông tin tài khoản đang đăng nhập.")
+@require_auth
 def me(request: Request):
     user = require_user(request)
     return {"success": True, "data": UserOut.model_validate(user)}
 
 
 @router.get("/users", response_model=List[UserOut], summary="Danh sách tài khoản (admin)", description="Admin xem danh sách tài khoản để duyệt/kích hoạt.")
+@require_auth
 def list_users(request: Request):
     require_superuser(request)
     db = get_session()
@@ -105,6 +107,7 @@ def list_users(request: Request):
 
 
 @router.patch("/users/{user_id}", response_model=UserOut, summary="Cập nhật tài khoản (admin)", description="Admin kích hoạt / vô hiệu hóa tài khoản, hoặc nâng quyền admin.")
+@require_auth
 def update_user(user_id: int, data: AdminUpdateRequest, request: Request):
     admin = require_superuser(request)
     db = get_session()
@@ -126,6 +129,7 @@ def update_user(user_id: int, data: AdminUpdateRequest, request: Request):
 
 
 @router.post("/logout", summary="Đăng xuất (tài khoản + Telegram)")
+@require_auth
 async def logout(request: Request, response: Response):
     response.delete_cookie("tdrive_token")
     from config.auth import get_current_user
@@ -139,6 +143,7 @@ async def logout(request: Request, response: Response):
 
 
 @router.post("/users/{user_id}/reset-password", summary="Đặt lại mật khẩu (admin)", description="Admin đặt lại mật khẩu mới cho user.")
+@require_auth
 def reset_user_password(user_id: int, data: ResetPasswordRequest, request: Request):
     require_superuser(request)
     db = get_session()
@@ -152,6 +157,7 @@ def reset_user_password(user_id: int, data: ResetPasswordRequest, request: Reque
 
 
 @router.post("/change-password", summary="Đổi mật khẩu của chính mình", description="Người dùng tự đổi mật khẩu (cần nhập mật khẩu hiện tại).")
+@require_auth
 def change_own_password(data: ChangePasswordRequest, request: Request):
     user = require_user(request)
     db = get_session()
@@ -186,6 +192,7 @@ class QrLoginRequest(BaseModel):
 
 
 @router.post("/send-code", summary="Gửi mã xác thực Telegram", description="Sau khi đăng nhập tài khoản, gửi mã OTP đến số điện thoại Telegram để kết nối.")
+@require_auth
 async def send_code(data: SendCodeRequest, request: Request):
     user = require_user(request)
     try:
@@ -198,6 +205,7 @@ async def send_code(data: SendCodeRequest, request: Request):
 
 
 @router.post("/sign-in", summary="Xác thực mã OTP", description="Nhập mã OTP từ Telegram để kết nối.")
+@require_auth
 async def sign_in(data: SignInRequest, request: Request):
     user = require_user(request)
     try:
@@ -210,6 +218,7 @@ async def sign_in(data: SignInRequest, request: Request):
 
 
 @router.post("/check-password", summary="Xác thực mật khẩu 2FA", description="Nhập mật khẩu đám mây (2FA) nếu tài khoản Telegram bật xác thực 2 lớp.")
+@require_auth
 async def check_password(data: PasswordRequest, request: Request):
     user = require_user(request)
     try:
@@ -222,6 +231,7 @@ async def check_password(data: PasswordRequest, request: Request):
 
 
 @router.post("/qr/start", summary="Bắt đầu đăng nhập bằng QR", description="Tạo URL mã QR (tg://login?token=...) để quét trên app Telegram.")
+@require_auth
 async def qr_start(data: QrLoginRequest, request: Request):
     user = require_user(request)
     try:
@@ -234,6 +244,7 @@ async def qr_start(data: QrLoginRequest, request: Request):
 
 
 @router.get("/qr/poll", summary="Kiểm tra trạng thái quét mã QR", description="Poll kiểm tra xem người dùng đã quét mã QR trên điện thoại chưa.")
+@require_auth
 async def qr_poll(request: Request):
     user = require_user(request)
     try:

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from config.database import get_session, close_session
-from config.auth import require_user
+from config.auth import require_user, require_auth
 from api.files.repo import SharedLink
 from core.telegram_client import telegram_manager
 from core.streaming import build_media_response
@@ -31,6 +31,7 @@ def generate_cookie_token(token: str, password_hash: str) -> str:
 
 
 @router.post("/api/shares", summary="Tạo link chia sẻ file", description="Tạo một đường link công khai (có thể đặt mật khẩu hoặc hạn dùng) để chia sẻ file trực tiếp.")
+@require_auth
 async def create_share_link(data: CreateShareRequest, request: Request):
     user = require_user(request)
     db = get_session()

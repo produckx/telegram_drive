@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.telegram_client import telegram_manager, media_size
 from core.streaming import build_media_response
-from config.auth import require_user_id, require_user
+from config.auth import require_user_id, require_user, require_auth
 from config.settings import settings
 from api.folders.catalog import (
     get_folder, can_access_folder, can_manage_folder, can_access_file,
@@ -104,6 +104,7 @@ def _doc_name(msg) -> str:
 
 
 @router.get("", summary="Danh sách file từ DB", description="folder_id=None: file của bạn. folder_id cụ thể: file trong folder đó. Trả về toàn bộ file (không phân trang).")
+@require_auth
 async def list_files(
     request: Request,
     folder_id: Optional[int] = None,
@@ -139,6 +140,7 @@ async def list_files(
 
 
 @router.get("/{message_id}", summary="Chi tiết file")
+@require_auth
 async def get_file(message_id: int, request: Request, folder_id: Optional[int] = None):
     user = require_user(request)
     is_superuser = user.is_superuser
@@ -164,6 +166,7 @@ async def get_file(message_id: int, request: Request, folder_id: Optional[int] =
 
 
 @router.post("", summary="Tải file lên Telegram")
+@require_auth
 async def upload_file(
     request: Request,
     file: UploadFile = FastAPIFile(...),
@@ -229,6 +232,7 @@ async def upload_file(
 
 
 @router.get("/{message_id}/download", summary="Tải file / Stream video")
+@require_auth
 async def download_file(message_id: int, request: Request, folder_id: Optional[int] = None):
     user = require_user(request)
     is_superuser = user.is_superuser
@@ -259,6 +263,7 @@ async def download_file(message_id: int, request: Request, folder_id: Optional[i
 
 
 @router.get("/by-message/{message_id}", summary="Chi tiết file theo message_id (dùng cho share links)")
+@require_auth
 async def get_file_by_msg(message_id: int, request: Request):
     """Get file info for shared link - uses shared client."""
     client, _ = await _get_shared_client()
@@ -288,6 +293,7 @@ async def get_file_by_msg(message_id: int, request: Request):
 
 
 @router.patch("/{message_id}", summary="Đổi tên file")
+@require_auth
 async def rename_file(message_id: int, data: RenameFileRequest, request: Request):
     user, client, _ = await current_client_with_access(request)
     db = get_session()
@@ -315,6 +321,7 @@ async def rename_file(message_id: int, data: RenameFileRequest, request: Request
 
 
 @router.post("/{message_id}/move", summary="Di chuyển file")
+@require_auth
 async def move_file(message_id: int, data: MoveFileRequest, request: Request):
     user, client, target_folder = await current_client_with_access(request, data.target_folder_id)
     is_superuser = user.is_superuser
@@ -357,6 +364,7 @@ async def move_file(message_id: int, data: MoveFileRequest, request: Request):
 
 
 @router.delete("/{message_id}", summary="Xóa file")
+@require_auth
 async def delete_file(message_id: int, request: Request, folder_id: Optional[int] = None):
     user, client, _ = await current_client_with_access(request, folder_id)
     peer = await telegram_manager.resolve_peer(user.id, folder_id)

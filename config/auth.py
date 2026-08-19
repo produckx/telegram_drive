@@ -36,6 +36,19 @@ def resolve_auth(func):
     return wrapper
 
 
+def require_auth(func):
+    """Decorator: set __auth_required__ để Swagger UI hiển thị ổ khóa tự động.
+
+    Usage:
+    @router.get("/me")
+    @require_auth
+    def me(request: Request):
+        user = require_user(request)  # ...
+    """
+    func.__auth_required__ = True
+    return func
+
+
 def get_current_user(request: Request) -> Optional[User]:
     """Lấy user hiện tại từ JWT (Authorization Bearer hoặc cookie 'tdrive_token').
     Trả None nếu không có/sai token, hoặc user không còn active."""

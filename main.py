@@ -111,24 +111,55 @@ def custom_openapi():
         openapi_version="3.0.3",
     )
 
-    # Add API Key security scheme
     openapi_schema["components"]["securitySchemes"] = {
-        "ApiKeyAuth": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "x-api-key",
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Token JWT từ /api/auth/login hoặc cookie tdrive_token.",
         }
     }
 
-    # Add security requirements to protected routes
+    PUBLIC_ENDPOINTS = {
+        ("POST", "/api/auth/register"),
+        ("POST", "/api/auth/login"),
+        ("GET", "/api/auth/status"),
+    }
+
+    def _endpoint_requires_auth(route, src: str) -> bool:
+        """Xác định endpoint yêu cầu xác thực.
+
+        - Có __auth_required__ (decorator @require_auth) → YÊU CẦU
+        - Source gọi require_user() hoặc require_superuser() → YÊU CẦU
+        - Endpoint thuộc PUBLIC_ENDPOINTS → KHÔNG
+        """
+        for method in route.methods:
+            if method == "OPTIONS":
+                continue
+            if (method, route.path) in PUBLIC_ENDPOINTS:
+                return False
+        if getattr(route.endpoint, "__auth_required__", False):
+            return True
+        if "require_user(" in src or "require_superuser(" in src:
+            return True
+        return False
+
     for route in app.routes:
-        if isinstance(route, APIRoute):
-            if getattr(route.endpoint, "__auth_required__", False):
+        if isinstance(route, APIRoute) and route.path.startswith("/api/"):
+            import inspect
+            try:
+                src = inspect.getsource(route.endpoint)
+            except (OSError, TypeError):
+                continue
+
+            if _endpoint_requires_auth(route, src):
                 path_item = openapi_schema["paths"].get(route.path)
                 if path_item:
                     for method in route.methods:
+                        if method == "OPTIONS":
+                            continue
                         if method.lower() in path_item:
-                            path_item[method.lower()].setdefault("security", []).append({"ApiKeyAuth": []})
+                            path_item[method.lower()].setdefault("security", []).append({"BearerAuth": []})
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

@@ -7,7 +7,7 @@ from core.telegram_client import telegram_manager
 from core.palette import color_for, ext_for_name
 from api.files.repo import File, Folder
 from api.files.router import _get_shared_client
-from config.auth import require_user
+from config.auth import require_user, require_auth
 from config.database import get_session, close_session
 
 router = APIRouter(prefix="/api/storage", tags=["Telegram Storage"])
@@ -30,6 +30,7 @@ def _get_visible_files(db, user_id: int, is_superuser: bool):
 
 
 @router.get("/stats", summary="Thống kê lưu trữ từ DB", description="Tổng hợp dung lượng, số lượng file. Phân bố theo LOẠI FILE (mỗi loại 1 màu) có phần trăm.")
+@require_auth
 async def storage_stats(request: Request):
     user = require_user(request)
     is_superuser = user.is_superuser
@@ -89,6 +90,7 @@ async def storage_stats(request: Request):
 
 
 @router.get("/duplicates", summary="Tìm file trùng lặp từ DB", description="Tìm các file có cùng tên và kích thước.")
+@require_auth
 async def storage_duplicates(request: Request):
     user = require_user(request)
     is_superuser = user.is_superuser
