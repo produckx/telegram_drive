@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from starlette.templating import _TemplateResponse
+from datetime import timezone
 from web.templates import templates
 from core.telegram_client import telegram_manager
 from core.palette import color_for, ext_for_name
@@ -56,7 +57,7 @@ async def index(request: Request):
         for fid, name, peer in peers:
             folder_size = 0
             folder_count = 0
-            async for msg in client.iter_messages(peer, limit=200):
+            async for msg in client.iter_messages(peer):
                 if not msg.media:
                     continue
                 doc = msg.document
@@ -90,7 +91,8 @@ async def index(request: Request):
                 if doc:
                     key = (fname, size)
                     dup_map.setdefault(key, []).append({
-                        "message_id": msg.id, "folder_name": name, "created_at": msg.date,
+                        "message_id": msg.id, "folder_name": name,
+                        "created_at": msg.date.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None) if msg.date else None,
                     })
 
             folder_stats.append({"id": fid, "name": name, "file_count": folder_count, "size_bytes": folder_size})

@@ -17,8 +17,8 @@ class File(Base):
     size = Column(BigInteger, nullable=False, default=0)
     mime_type = Column(String(255), nullable=True)
     file_ext = Column(String(50), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     encryption_state = Column(String(50), default="plain")
     is_favorite = Column(Integer, default=0)
     is_pinned = Column(Integer, default=0)
@@ -38,7 +38,7 @@ class Folder(Base):
     is_public = Column(Integer, default=0)
     group_id = Column(Integer, nullable=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
     files = relationship("File", back_populates="folder")

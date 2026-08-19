@@ -41,8 +41,6 @@ def list_files(
     size_max: Optional[int] = None,
     sort: str = "created_at",
     order: str = "desc",
-    page: int = 1,
-    limit: int = 20,
 ) -> tuple[List[File], int]:
     query = db.query(File)
 
@@ -68,12 +66,9 @@ def list_files(
     else:
         query = query.order_by(sort_column.desc())
 
-    total = query.count()
+    files = query.all()
 
-    offset = (page - 1) * limit
-    files = query.offset(offset).limit(limit).all()
-
-    return files, total
+    return files, len(files)
 
 
 def update_file(db: Session, message_id: int, data: FileUpdate, folder_id: Optional[int] = None) -> Optional[File]:
@@ -85,7 +80,7 @@ def update_file(db: Session, message_id: int, data: FileUpdate, folder_id: Optio
         file.name = data.name
     if data.folder_id is not None:
         file.folder_id = data.folder_id
-    file.updated_at = datetime.utcnow()
+    file.updated_at = datetime.now()
 
     try:
         db.commit()
@@ -149,12 +144,11 @@ def search_files(
     db: Session,
     query: str,
     folder_id: Optional[int] = None,
-    limit: int = 20,
 ) -> List[File]:
     q = db.query(File).filter(File.name.ilike(f"%{query}%"))
     if folder_id is not None:
         q = q.filter(File.folder_id == folder_id)
-    return q.limit(limit).all()
+    return q.all()
 
 
 def is_encrypted(db: Session, folder_key: str, message_id: int) -> bool:

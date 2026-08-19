@@ -42,7 +42,7 @@ async def index(request: Request, folder_id: Optional[int] = None, search: Optio
         files_data = list_user_files(db, uid, is_superuser, folder_id, search)
 
         files = []
-        for f in files_data[:1000]:
+        for f in files_data:
             can_manage = is_superuser or f.owner_user_id == uid or f.uploaded_by_user_id == uid
             files.append({
                 "id": f.message_id,
@@ -72,6 +72,6 @@ async def index(request: Request, folder_id: Optional[int] = None, search: Optio
         "total": len(files),
         "page": 1,
         "total_pages": 1,
-        "limit": 100,
+        "limit": len(files),
     }
     return templates.TemplateResponse("files/index.html", context)

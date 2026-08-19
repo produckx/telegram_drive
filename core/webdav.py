@@ -96,10 +96,10 @@ def propfind_response(depth: int, path: str, children: List[Dict]) -> str:
     return "\n".join(xml)
 
 
-async def list_peer_files(client, peer, limit: int = 500) -> List[Dict]:
+async def list_peer_files(client, peer) -> List[Dict]:
     """List files in a peer, returning WebDAV-style entries."""
     entries = []
-    async for msg in client.iter_messages(peer, limit=limit):
+    async for msg in client.iter_messages(peer):
         if not msg.media:
             continue
 

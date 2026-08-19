@@ -11,7 +11,7 @@ from config.auth import require_user_id, require_user
 from config.settings import settings
 from api.folders.catalog import (
     get_folder, can_access_folder, can_manage_folder, can_access_file,
-    upsert_file, remove_file, list_user_files, list_user_folders,
+    can_manage_file, upsert_file, remove_file, list_user_files, list_user_folders,
 )
 from api.files.repo import Folder, File
 from config.database import get_session, close_session
@@ -103,28 +103,23 @@ def _doc_name(msg) -> str:
     return msg.text.strip() if msg.text and msg.text.strip() else filename
 
 
-@router.get("", summary="Danh sách file từ DB", description="folder_id=None: file của bạn. folder_id cụ thể: file trong folder đó.")
+@router.get("", summary="Danh sách file từ DB", description="folder_id=None: file của bạn. folder_id cụ thể: file trong folder đó. Trả về toàn bộ file (không phân trang).")
 async def list_files(
     request: Request,
     folder_id: Optional[int] = None,
     search: Optional[str] = None,
-    limit: int = 100,
-    offset: int = 0,
 ):
     user = require_user(request)
     is_superuser = user.is_superuser
     db = get_session()
     try:
         files = list_user_files(db, user.id, is_superuser, folder_id, search)
-        files_data = files[offset:offset+limit]
         folders = list_user_folders(db, user.id, is_superuser)
+        folder_map = {fc.id: fc for fc in folders}
         result = []
-        for f in files_data:
-            folder_name = ""
-            for fc in folders:
-                if fc.id == f.folder_id:
-                    folder_name = fc.name
-                    break
+        for f in files:
+            folder = folder_map.get(f.folder_id)
+            folder_name = folder.name if folder else ""
             result.append({
                 "id": f.message_id,
                 "message_id": f.message_id,
@@ -134,6 +129,9 @@ async def list_files(
                 "mime_type": f.mime_type or "application/octet-stream",
                 "created_at": f.created_at.isoformat() if f.created_at else "",
                 "folder_name": folder_name or "Saved Messages",
+                "can_manage": can_manage_file(f, folder, user.id, is_superuser),
+                "owner_user_id": f.owner_user_id,
+                "uploaded_by_user_id": f.uploaded_by_user_id,
             })
         return {"success": True, "data": result, "count": len(result), "total": len(files), "folder_id": folder_id}
     finally:
@@ -201,7 +199,7 @@ async def upload_file(
 
         db = get_session()
         try:
-            upsert_file(
+            row = upsert_file(
                 db,
                 owner_user_id=folder_owner,
                 uploaded_by_user_id=user.id,
@@ -222,7 +220,7 @@ async def upload_file(
                 "folder_id": folder_id,
                 "name": file.filename,
                 "size": size,
-                "created_at": msg.date.isoformat() if msg.date else "",
+                "created_at": row.created_at.isoformat() if row and row.created_at else "",
             },
         }
     finally:

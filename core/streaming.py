@@ -56,7 +56,7 @@ async def iter_telegram_media_range(
         offset=cdn_aligned_start,
         chunk_size=CHUNK_SIZE,
     ):
-        data = chunk
+        data = bytes(chunk)  # Convert memoryview to bytes for Starlette compatibility
         if skipped < bytes_to_skip:
             to_skip = bytes_to_skip - skipped
             if len(data) <= to_skip:

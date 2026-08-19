@@ -57,23 +57,12 @@ class AppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
 
-    # Pagination defaults
-    DEFAULT_PAGE: int = 1
-    DEFAULT_LIMIT: int = 20
-    MAX_LIMIT: int = 100
-
     # Account/registration limits
-    MAX_ACCOUNTS_PER_IP: int = 50  # mỗi IP công cộng chỉ được tối đa 50 tài khoản
+    MAX_ACCOUNTS_PER_IP: int = 50  # mỗi IP công cộng chỉ được tối đa 50 tài khoản đăng ký
 
-    # Rate limits (in-memory; values are "max requests per window seconds")
-    RATE_LIMIT_REGISTER: int = 5        # request/giờ/IP cho /api/auth/register
-    RATE_LIMIT_REGISTER_WINDOW: int = 3600
-    RATE_LIMIT_LOGIN: int = 10          # request/phút/IP cho /api/auth/login
-    RATE_LIMIT_LOGIN_WINDOW: int = 60
-    RATE_LIMIT_SEND_CODE: int = 3       # request/10 phút/IP cho /api/auth/send-code
-    RATE_LIMIT_SEND_CODE_WINDOW: int = 600
-    RATE_LIMIT_DEFAULT: int = 120       # request/phút/IP mặc định cho các endpoint còn lại
-    RATE_LIMIT_DEFAULT_WINDOW: int = 60
+    # Rate limits: giới hạn SỐ LẦN GỌI API (không phải giới hạn số item trả về)
+    RATE_LIMIT_PER_ACCOUNT: int = 20      # 20 request/giây/account (chưa đăng nhập thì tính theo IP)
+    RATE_LIMIT_ACCOUNT_WINDOW: int = 1    # window 1 giây
 
     @field_validator("TELEGRAM_API_ID", mode="before")
     @classmethod

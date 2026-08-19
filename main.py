@@ -12,7 +12,7 @@ from core.webdav import router as webdav_router
 from config.database import init_db
 from config.settings import settings
 from config.logging import setup_logging
-from config.rate_limit import rate_limiter, login_guard, get_client_ip
+from config.rate_limit import rate_limiter, get_client_ip
 
 # Setup logging
 setup_logging()
@@ -37,50 +37,48 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    """Giới hạn số lần gọi API: 20 request/giây/account (chưa đăng nhập thì tính theo IP).
+
+    Đây là giới hạn SỐ LẦN GỌI API, không phải giới hạn số item trả về.
+    Các endpoint danh sách (files/folders/users...) trả về toàn bộ dữ liệu.
+    Đăng ký tài khoản được giới hạn riêng: tối đa 50 tài khoản / IP công cộng
+    (kiểm tra trong endpoint /api/auth/register).
+    """
+    path = request.url.path
+
+    # Chỉ áp dụng cho API endpoints
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    # Xác định account: user đã đăng nhập, nếu chưa thì tính theo IP
+    user = getattr(request.state, "current_user", None)
+    if user is not None:
+        key = f"api:user:{user.id}"
+    else:
+        key = f"api:ip:{get_client_ip(request)}"
+
+    window = settings.RATE_LIMIT_ACCOUNT_WINDOW
+    max_req = settings.RATE_LIMIT_PER_ACCOUNT
+    if not rate_limiter.allow(key, max_req, window):
+        from starlette.responses import JSONResponse
+        retry = rate_limiter.retry_after(key, window)
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Quá nhiều yêu cầu. Vui lòng thử lại sau {retry} giây."},
+            headers={"Retry-After": str(retry)},
+        )
+
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def attach_current_user(request, call_next):
     """Gắn user hiện tại vào request.state để các trang web/template sử dụng."""
     from config.auth import get_current_user
     request.state.current_user = get_current_user(request)
     response = await call_next(request)
     return response
-
-
-@app.middleware("http")
-async def rate_limit_middleware(request, call_next):
-    """Rate-limit các endpoint nhạy cảm (register/login/send-code) tránh DDoS & spam đăng ký."""
-    path = request.url.path
-    method = request.method
-    ip = get_client_ip(request)
-
-    # Chỉ áp dụng cho POST/PATCH (tạo mới/đăng nhập), bỏ qua GET/HEAD/OPTIONS
-    if method in ("POST", "PATCH", "PUT", "DELETE"):
-        if path.rstrip("/").endswith("/api/auth/register"):
-            key = f"register:{ip}"
-            window = settings.RATE_LIMIT_REGISTER_WINDOW
-            max_req = settings.RATE_LIMIT_REGISTER
-        elif path.rstrip("/").endswith("/api/auth/login"):
-            key = f"login:{ip}"
-            window = settings.RATE_LIMIT_LOGIN_WINDOW
-            max_req = settings.RATE_LIMIT_LOGIN
-        elif path.rstrip("/").endswith("/api/auth/send-code"):
-            key = f"sendcode:{ip}"
-            window = settings.RATE_LIMIT_SEND_CODE_WINDOW
-            max_req = settings.RATE_LIMIT_SEND_CODE
-        else:
-            key = f"generic:{ip}"
-            window = settings.RATE_LIMIT_DEFAULT_WINDOW
-            max_req = settings.RATE_LIMIT_DEFAULT
-
-        if not rate_limiter.allow(key, max_req, window):
-            from starlette.responses import JSONResponse
-            retry = rate_limiter.retry_after(key, window)
-            return JSONResponse(
-                status_code=429,
-                content={"detail": f"Quá nhiều yêu cầu. Vui lòng thử lại sau {retry} giây."},
-                headers={"Retry-After": str(retry)},
-            )
-
-    return await call_next(request)
 
 # Mount shared static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -143,6 +141,10 @@ app.include_router(api_router)   # Backend REST API: /api/*
 app.include_router(web_router)   # Frontend Jinja2 Pages: /*
 app.include_router(webdav_router) # WebDAV Protocol: /webdav/*
 
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("favicon.ico")
 
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
